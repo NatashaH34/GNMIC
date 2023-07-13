@@ -1,0 +1,128 @@
+import os
+import subprocess
+
+
+class RESTAPI:
+  """
+  Creates a REST API handle
+  Supports logging into the node and configs on the node
+  """
+
+
+  def getCollectorIP(self):
+    """
+    return the collector IP
+    """
+    return 0
+
+  # Login command:
+
+  def login(self):
+    """
+    Send login command to the node
+    Parse status information and log output
+    Returns: error message, success message, or None if the command has a nonzero return code
+    """
+    loginCMD = f"/opt/tools/swtools/6500/nbitools/testrest login {self.device.sp_ip_address}"  # the sim's IP (192.168.0.95)
+
+    process = subprocess.run(
+      loginCMD,
+      stdout=subprocess.PIPE,
+      stderr=subprocess.PIPE,
+      shell=True,
+      universal_newlines=True,
+    )
+
+    self.log.info(f'return code: {process.returncode} /n')
+    self.log.info(f'stdout: {process.stdout} /n')
+    self.log.info(f'stdout: {process.sterr} /n')
+
+    return 0
+
+    """
+    if process.returncode != 0:
+      self.log.error("login command unsuccessful")
+      if process.stderr:
+        self.log.error(process.stderr)
+        return process.stderr
+      return None
+    
+    output = process.stdout
+    self.log.debug(output)
+    self.log.info(output)
+    return output
+    """
+
+  def tempConfig(self):
+    os.system(
+      "/opt/tools/swtools/6500/nbitools/testrest put api/v1/datastore/grpc-tunnel/target-id/target_id_project_alpha '{\"components\":[\"custom\"],\"custom\":\"TARGET_ID_PROJECT_ALPHA\"}\'")
+    os.system(
+      "/opt/tools/swtools/6500/nbitools/testrest put api/v1/datastore/grpc-tunnel/destination/10.179.199.114,50066/ '{\"address\":\"10.179.199.114\",\"port\":\"50066\",\"description\":\"Dialout1\",\"admin-state\":\"enable\",\"secure-tunnel\":\"false\",\"handler\":[{\"target-id\":\"target_id_project_alpha\",\"target-type\":\"GNMI_GNOI\",\"secure-service\":\"true\"}]}'")  # my personal system's IP (10.179.199.114)
+    self.log.info("Waiting 10 seconds")
+    import time
+    time.sleep(10)
+
+"""
+  # Config on the node:
+
+  def createTargetID(self): # create target-id
+    
+    Create a target-id of custom type
+    Parse status information and log output
+    Returns: error message, success message, or None if the command has a nonzero return code
+    
+    targetidCMD = "/opt/tools/swtools/6500/nbitools/testrest put api/v1/datastore/grpc-tunnel/target-id/target_id_project_alpha '{\"components\":[\"custom\"],\"custom\":\"TARGET_ID_PROJECT_ALPHA\"}\'"
+
+    process = subprocess.run(
+      targetidCMD,
+      stdout=subprocess.PIPE,
+      stderr=subprocess.PIPE,
+      shell=True,
+      universal_newlines=True,
+    )
+
+    if process.returncode != 0:
+      self.log.error("target-id command unsuccessful")
+      if process.stderr:
+        self.log.error(process.stderr)
+        return process.stderr
+      return None
+
+    output = process.stdout
+    self.log.debug(output)
+    self.log.info(output)
+    return output
+
+  def createDestination(self, tunnel): # create destination from target-id
+    
+    Use the target-id to create a destination
+    Parse status information and log output
+    Returns: error message, success message, or None if the command has a nonzero return code
+    Args:
+      collectorIP: IP address of collector (string)
+      tunnel: either secure or insecure (string)
+    
+
+    createDestCMD = f"/opt/tools/swtools/6500/nbitools/testrest put api/v1/datastore/grpc-tunnel/destination/{self.getCollectorIP()},8443/ '{{\"address\":{self.getCollectorIP()},\"port\":8443,\"description\":\"Dialout1\",\"admin-state\":\"enable\",\"secure-tunnel\":{tunnel},\"handler\":[{{\"target-id\":\"target_id_project_alpha\",\"target-type\":\"GNMI_GNOI\",\"secure-service\":\"true\"}}]}}'"
+    process = subprocess.run(
+      createDestCMD,
+      stdout=subprocess.PIPE,
+      stderr=subprocess.PIPE,
+      shell=True,
+      universal_newlines=True,
+    )
+
+    if process.returncode != 0:
+      self.log.error("create destination command unsuccessful")
+      if process.stderr:
+        self.log.error(process.stderr)
+        return process.stderr
+      return None
+
+    output = process.stdout
+    self.log.debug(output)
+    self.log.info(output)
+    return output
+    
+    
+"""
