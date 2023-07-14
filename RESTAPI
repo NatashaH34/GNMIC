@@ -1,29 +1,29 @@
-import os
 import subprocess
-
 
 class RESTAPI:
   """
-  Creates a REST API handle
-  Supports logging into the node and configs on the node
+  REST API handle
+  Supports logging into the node and connecting to the node
   """
 
-
-  def getCollectorIP(self):
+  def getCollectorIP(self): # temp until I find a function to get the IP
     """
-    return the collector IP
+    Called by createDestination()
+    Returns: the collector IP
     """
-    return 0
+    return "0.179.199.114"
 
-  # Login command:
+  # login to the node
 
   def login(self):
     """
-    Send login command to the node
+    Login to the node from collector
     Parse status information and log output
-    Returns: error message, success message, or None if the command has a nonzero return code
+    Called by connectRESTAPI()
+    Returns: True if successful, False if unsuccessful
     """
-    loginCMD = f"/opt/tools/swtools/6500/nbitools/testrest login {self.device.sp_ip_address}"  # the sim's IP (192.168.0.95)
+    self.log.info("logging in...")
+    loginCMD = f"/opt/tools/swtools/6500/nbitools/testrest login {self.device.sp_ip_address}"
 
     process = subprocess.run(
       loginCMD,
@@ -33,44 +33,27 @@ class RESTAPI:
       universal_newlines=True,
     )
 
-    self.log.info(f'return code: {process.returncode} /n')
-    self.log.info(f'stdout: {process.stdout} /n')
-    self.log.info(f'stdout: {process.sterr} /n')
-
-    return 0
-
-    """
     if process.returncode != 0:
-      self.log.error("login command unsuccessful")
+      self.log.error("Login unsuccessful")
       if process.stderr:
         self.log.error(process.stderr)
-        return process.stderr
-      return None
+      return False
     
-    output = process.stdout
-    self.log.debug(output)
-    self.log.info(output)
-    return output
-    """
+    self.log.debug(process.stdout)
+    self.log.info("Login successful")
+    return True
 
-  def tempConfig(self):
-    os.system(
-      "/opt/tools/swtools/6500/nbitools/testrest put api/v1/datastore/grpc-tunnel/target-id/target_id_project_alpha '{\"components\":[\"custom\"],\"custom\":\"TARGET_ID_PROJECT_ALPHA\"}\'")
-    os.system(
-      "/opt/tools/swtools/6500/nbitools/testrest put api/v1/datastore/grpc-tunnel/destination/10.179.199.114,50066/ '{\"address\":\"10.179.199.114\",\"port\":\"50066\",\"description\":\"Dialout1\",\"admin-state\":\"enable\",\"secure-tunnel\":\"false\",\"handler\":[{\"target-id\":\"target_id_project_alpha\",\"target-type\":\"GNMI_GNOI\",\"secure-service\":\"true\"}]}'")  # my personal system's IP (10.179.199.114)
-    self.log.info("Waiting 10 seconds")
-    import time
-    time.sleep(10)
 
-"""
   # Config on the node:
 
-  def createTargetID(self): # create target-id
-    
+  def createTargetID(self):
+    """
     Create a target-id of custom type
     Parse status information and log output
-    Returns: error message, success message, or None if the command has a nonzero return code
-    
+    Called by connectRESTAPI()
+    Returns: True if successful, False if unsuccessful
+    """
+    self.log.info("creating target-id...")
     targetidCMD = "/opt/tools/swtools/6500/nbitools/testrest put api/v1/datastore/grpc-tunnel/target-id/target_id_project_alpha '{\"components\":[\"custom\"],\"custom\":\"TARGET_ID_PROJECT_ALPHA\"}\'"
 
     process = subprocess.run(
@@ -82,28 +65,28 @@ class RESTAPI:
     )
 
     if process.returncode != 0:
-      self.log.error("target-id command unsuccessful")
+      self.log.error("Target-id could not be created")
       if process.stderr:
         self.log.error(process.stderr)
-        return process.stderr
-      return None
-
-    output = process.stdout
-    self.log.debug(output)
-    self.log.info(output)
-    return output
-
-  def createDestination(self, tunnel): # create destination from target-id
+      return False
     
+    self.log.debug(process.stdout)
+    self.log.info("Target-id created successfully")
+    return True
+
+  def createDestination(self, tunnel="secure"):
+    """
     Use the target-id to create a destination
     Parse status information and log output
-    Returns: error message, success message, or None if the command has a nonzero return code
+    Called by connectRESTAPI()
+    Returns: True if successful, False if unsuccessful
     Args:
-      collectorIP: IP address of collector (string)
       tunnel: either secure or insecure (string)
-    
+    """
 
-    createDestCMD = f"/opt/tools/swtools/6500/nbitools/testrest put api/v1/datastore/grpc-tunnel/destination/{self.getCollectorIP()},8443/ '{{\"address\":{self.getCollectorIP()},\"port\":8443,\"description\":\"Dialout1\",\"admin-state\":\"enable\",\"secure-tunnel\":{tunnel},\"handler\":[{{\"target-id\":\"target_id_project_alpha\",\"target-type\":\"GNMI_GNOI\",\"secure-service\":\"true\"}}]}}'"
+    self.log.info("creating destination..")
+    createDestCMD = f"/opt/tools/swtools/6500/nbitools/testrest put api/v1/datastore/grpc-tunnel/destination/{RESTAPI.getCollectorIP(self)},8443/ '{{\"address\":{RESTAPI.getCollectorIP(self)},\"port\":8443,\"description\":\"Dialout1\",\"admin-state\":\"enable\",\"secure-tunnel\":{tunnel},\"handler\":[{{\"target-id\":\"target_id_project_alpha\",\"target-type\":\"GNMI_GNOI\",\"secure-service\":\"true\"}}]}}'"
+    
     process = subprocess.run(
       createDestCMD,
       stdout=subprocess.PIPE,
@@ -113,16 +96,31 @@ class RESTAPI:
     )
 
     if process.returncode != 0:
-      self.log.error("create destination command unsuccessful")
+      self.log.error("Destination could not be created")
       if process.stderr:
         self.log.error(process.stderr)
-        return process.stderr
-      return None
+      return False
 
-    output = process.stdout
-    self.log.debug(output)
-    self.log.info(output)
-    return output
+    self.log.debug(process.stdout)
+    self.log.info("Destination created successfully")
+    return True
+
+  # login and connect to REST API
+
+  def loginAndConnectRESTAPI(self):
+    """
+    Login to the node, create target-id, create destination
+    Log whether a connection could be established
+    Called in TEST_GNMIC.py
+    Returns: True if successful, False if unsuccessful
+    """
+    self.log.info(f"Login and connect {self.device.name} with REST API")
     
+    if RESTAPI.login(self) and RESTAPI.createTargetID(self) and RESTAPI.createDestination(self) :
+      self.log.info(f"Connection established on {self.device.name}")
+      return True
     
-"""
+    self.log.info(f"Couldn't establish a connection on {self.device.name}.")
+    return False
+    
+  
