@@ -1,17 +1,11 @@
 import subprocess
+import socket
 
 class RESTAPI:
   """
   REST API handle
   Supports logging into the node and connecting to the node
   """
-
-  def getCollectorIP(self): # temp until I find a function to get the IP
-    """
-    Called by createDestination()
-    Returns: the collector IP
-    """
-    return "0.179.199.114"
 
   # login to the node
 
@@ -22,7 +16,6 @@ class RESTAPI:
     Called by connectRESTAPI()
     Returns: True if successful, False if unsuccessful
     """
-    self.log.info("logging in...")
     loginCMD = f"/opt/tools/swtools/6500/nbitools/testrest login {self.device.sp_ip_address}"
 
     process = subprocess.run(
@@ -53,7 +46,6 @@ class RESTAPI:
     Called by connectRESTAPI()
     Returns: True if successful, False if unsuccessful
     """
-    self.log.info("creating target-id...")
     targetidCMD = "/opt/tools/swtools/6500/nbitools/testrest put api/v1/datastore/grpc-tunnel/target-id/target_id_project_alpha '{\"components\":[\"custom\"],\"custom\":\"TARGET_ID_PROJECT_ALPHA\"}\'"
 
     process = subprocess.run(
@@ -74,7 +66,7 @@ class RESTAPI:
     self.log.info("Target-id created successfully")
     return True
 
-  def createDestination(self, tunnel="secure"):
+  def createDestination(self, tunnel="secure", port="50066"):
     """
     Use the target-id to create a destination
     Parse status information and log output
@@ -84,8 +76,7 @@ class RESTAPI:
       tunnel: either secure or insecure (string)
     """
 
-    self.log.info("creating destination..")
-    createDestCMD = f"/opt/tools/swtools/6500/nbitools/testrest put api/v1/datastore/grpc-tunnel/destination/{RESTAPI.getCollectorIP(self)},8443/ '{{\"address\":{RESTAPI.getCollectorIP(self)},\"port\":8443,\"description\":\"Dialout1\",\"admin-state\":\"enable\",\"secure-tunnel\":{tunnel},\"handler\":[{{\"target-id\":\"target_id_project_alpha\",\"target-type\":\"GNMI_GNOI\",\"secure-service\":\"true\"}}]}}'"
+    createDestCMD = f"/opt/tools/swtools/6500/nbitools/testrest put api/v1/datastore/grpc-tunnel/destination/{socket.gethostbyname(socket.gethostname())},8443/ '{{\"address\":{socket.gethostbyname(socket.gethostname())},\"port\":{port},\"description\":\"Dialout1\",\"admin-state\":\"enable\",\"secure-tunnel\":{tunnel},\"handler\":[{{\"target-id\":\"target_id_project_alpha\",\"target-type\":\"GNMI_GNOI\",\"secure-service\":\"true\"}}]}}'"
     
     process = subprocess.run(
       createDestCMD,
