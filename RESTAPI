@@ -1,19 +1,19 @@
 import subprocess
 import socket
 
+
 class RESTAPI:
   """
   REST API handle
   Supports logging into the node and connecting to the node
   """
 
-  # login to the node
+  # Login to the node
 
   def login(self):
     """
     Login to the node from collector
     Parse status information and log output
-    Called by connectRESTAPI()
     Returns: True if successful, False if unsuccessful
     """
     loginCMD = f"/opt/tools/swtools/6500/nbitools/testrest login {self.device.sp_ip_address}"
@@ -31,11 +31,10 @@ class RESTAPI:
       if process.stderr:
         self.log.error(process.stderr)
       return False
-    
+
     self.log.debug(process.stdout)
     self.log.info("Login successful")
     return True
-
 
   # Config on the node:
 
@@ -43,10 +42,11 @@ class RESTAPI:
     """
     Create a target-id of custom type
     Parse status information and log output
-    Called by connectRESTAPI()
     Returns: True if successful, False if unsuccessful
     """
-    targetidCMD = "/opt/tools/swtools/6500/nbitools/testrest put api/v1/datastore/grpc-tunnel/target-id/target_id_project_alpha '{\"components\":[\"custom\"],\"custom\":\"TARGET_ID_PROJECT_ALPHA\"}\'"
+    targetidCMD = "/opt/tools/swtools/6500/nbitools/testrest put " \
+                  "api/v1/datastore/grpc-tunnel/target-id/target_id_project_alpha '{\"components\":[\"custom\"]," \
+                  "\"custom\":\"TARGET_ID_PROJECT_ALPHA\"}\'"
 
     process = subprocess.run(
       targetidCMD,
@@ -61,23 +61,28 @@ class RESTAPI:
       if process.stderr:
         self.log.error(process.stderr)
       return False
-    
+
     self.log.debug(process.stdout)
     self.log.info("Target-id created successfully")
     return True
 
-  def createDestination(self, tunnel="secure", port="50066"):
+  def createDestination(self, tunnel="secure", address="50066"):
     """
     Use the target-id to create a destination
     Parse status information and log output
-    Called by connectRESTAPI()
     Returns: True if successful, False if unsuccessful
     Args:
       tunnel: either secure or insecure (string)
+      address: port number (string)
     """
 
-    createDestCMD = f"/opt/tools/swtools/6500/nbitools/testrest put api/v1/datastore/grpc-tunnel/destination/{socket.gethostbyname(socket.gethostname())},8443/ '{{\"address\":{socket.gethostbyname(socket.gethostname())},\"port\":{port},\"description\":\"Dialout1\",\"admin-state\":\"enable\",\"secure-tunnel\":{tunnel},\"handler\":[{{\"target-id\":\"target_id_project_alpha\",\"target-type\":\"GNMI_GNOI\",\"secure-service\":\"true\"}}]}}'"
-    
+    createDestCMD = f"/opt/tools/swtools/6500/nbitools/testrest put " \
+                    f"api/v1/datastore/grpc-tunnel/destination/{socket.gethostbyname(socket.gethostname())}," \
+                    f"{address}/ '{{\"address\":{socket.gethostbyname(socket.gethostname())},\"port\":{address}," \
+                    f"\"description\":\"Dialout1\",\"admin-state\":\"enable\",\"secure-tunnel\":{tunnel}," \
+                    f"\"handler\":[{{\"target-id\":target_id_project_alpha\",\"target-type\":\"GNMI_GNOI\"," \
+                    f"\"secure-service\":\"true\"}}]}}'"
+
     process = subprocess.run(
       createDestCMD,
       stdout=subprocess.PIPE,
@@ -95,23 +100,3 @@ class RESTAPI:
     self.log.debug(process.stdout)
     self.log.info("Destination created successfully")
     return True
-
-  # login and connect to REST API
-
-  def loginAndConnectRESTAPI(self):
-    """
-    Login to the node, create target-id, create destination
-    Log whether a connection could be established
-    Called in TEST_GNMIC.py
-    Returns: True if successful, False if unsuccessful
-    """
-    self.log.info(f"Login and connect {self.device.name} with REST API")
-    
-    if RESTAPI.login(self) and RESTAPI.createTargetID(self) and RESTAPI.createDestination(self) :
-      self.log.info(f"Connection established on {self.device.name}")
-      return True
-    
-    self.log.info(f"Couldn't establish a connection on {self.device.name}.")
-    return False
-    
-  
