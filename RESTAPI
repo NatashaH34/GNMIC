@@ -66,7 +66,7 @@ class RESTAPI:
     self.log.info("Target-id created successfully")
     return True
 
-  def createDestination(self, tunnel="secure", address="50066"):
+  def createDestination(self, tunnel="insecure", address="50066"):
     """
     Use the target-id to create a destination
     Parse status information and log output
@@ -76,12 +76,14 @@ class RESTAPI:
       address: port number (string)
     """
 
-    createDestCMD = f"/opt/tools/swtools/6500/nbitools/testrest put " \
-                    f"api/v1/datastore/grpc-tunnel/destination/{socket.gethostbyname(socket.gethostname())}," \
-                    f"{address}/ '{{\"address\":{socket.gethostbyname(socket.gethostname())},\"port\":{address}," \
-                    f"\"description\":\"Dialout1\",\"admin-state\":\"enable\",\"secure-tunnel\":{tunnel}," \
-                    f"\"handler\":[{{\"target-id\":target_id_project_alpha\",\"target-type\":\"GNMI_GNOI\"," \
-                    f"\"secure-service\":\"true\"}}]}}'"
+    tunnel_secure = "true" if tunnel == "secure" else "false"
+
+    createDestCMD = f"/opt/tools/swtools/6500/nbitools/testrest put api/v1/datastore/grpc-tunnel/destination/" \
+                    f"{socket.gethostbyname(socket.gethostname())},{address}/ " \
+                    f"'{{\"address\":{socket.gethostbyname(socket.gethostname())}," \
+                    f"\"port\":{address},\"description\":\"Dialout1\",\"admin-state\":\"enable\"," \
+                    f"\"secure-tunnel\":{tunnel_secure},\"handler\":[{{\"target-id\":\"target_id_project_alpha\"," \
+                    f"\"target-type\":\"GNMI_GNOI\",\"secure-service\":\"true\"}}]}}'"
 
     process = subprocess.run(
       createDestCMD,
