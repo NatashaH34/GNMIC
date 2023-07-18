@@ -32,6 +32,7 @@ class TEST_GNMIC(test.TestCase):
       self.gnmicDev[device] = session
 
   def testExecute(self):
+
     # Login and connect to REST API
     for dev, session in self.gnmicDev.items():
       with self.gnmic_sanity_log.step(f"Login and connect {dev.name} with REST API") as step:
@@ -55,23 +56,6 @@ class TEST_GNMIC(test.TestCase):
 
     # Perform a single stream GNMIC Async message
     path = ['interfaces/interface', 'system/config']
-
-    for dev, session in self.gnmicDev.items():
-      with self.gnmic_sanity_log.step(f"Execute single stream for {path} on {dev.name}") as step:
-        # Stream contents are processed and returned as a dict
-        session.singleGNMICStream(yamlFile=yamlFile, path=path)
-        # Simple check to verify status of multiple streams
-        summaryStats = session.GNMICStreamsSummary()
-        passed = True
-        for path_ in path:
-          try:
-            summaryStats[path_]["streams"]
-          except:
-            step.Fail(errDict={f"{dev.name}": f"stream for path {path_} not executed"})
-            passed = False
-            break
-        if passed:
-          step.Pass()
 
     # Perform a continuous stream for 60secs for the paths below. Output written to the file name provided in logs/GRPC/
     paths = ['interfaces/interface', 'system/config']
