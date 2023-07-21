@@ -8,15 +8,19 @@ class RESTAPI:
   Supports logging into the node and connecting to the node
   """
 
+  def __init__(self, session):
+    self.session = session
+    self.targetID = "target_id_project_alpha"
+
   # Login to the node
 
-  def login(self):
+  def login(self, username="ADMIN", password="ADMIN"):
     """
     Login to the node from collector
     Parse status information and log output
     Returns: True if successful, False if unsuccessful
     """
-    loginCMD = f"/opt/tools/swtools/6500/nbitools/testrest login {self.device.sp_ip_address}"
+    loginCMD = f"/opt/tools/swtools/6500/nbitools/testrest login {self.session.device.sp_ip_address}"
 
     process = subprocess.run(
       loginCMD,
@@ -26,27 +30,34 @@ class RESTAPI:
       universal_newlines=True,
     )
 
-    if process.returncode != 0:
-      self.log.error("Login unsuccessful")
+    if not process.stdout.contains("NOERROR"):
+      self.session.log.error("Login unsuccessful")
       if process.stderr:
-        self.log.error(process.stderr)
+        self.session.log.error(process.stderr)
       return False
 
-    self.log.debug(process.stdout)
-    self.log.info("Login successful")
+    self.session.log.debug(process.stdout)
+    self.session.log.info("Login successful")
     return True
 
   # Config on the node:
 
-  def createTargetID(self):
+  def createTargetID(
+      self,
+      targetID="target_id_project_alpha",
+      customID="TARGET_ID_PROJECT_ALPHA"
+  ):
     """
     Create a target-id of custom type
     Parse status information and log output
     Returns: True if successful, False if unsuccessful
     """
+
+    self.targetID = targetID
+
     targetidCMD = "/opt/tools/swtools/6500/nbitools/testrest put " \
-                  "api/v1/datastore/grpc-tunnel/target-id/target_id_project_alpha '{\"components\":[\"custom\"]," \
-                  "\"custom\":\"TARGET_ID_PROJECT_ALPHA\"}\'"
+                  f"api/v1/datastore/grpc-tunnel/target-id/{targetID} '{{\"components\":[\"custom\"]," \
+                  f"\"custom\":{customID}}}\'"
 
     process = subprocess.run(
       targetidCMD,
@@ -56,24 +67,39 @@ class RESTAPI:
       universal_newlines=True,
     )
 
-    if process.returncode != 0:
-      self.log.error("Target-id could not be created")
+    self.session.log.info(f"Target-id return code: {process.returncode}")
+
+    if not process.stdout.contains("NOERROR"):
+
+      self.session.log.error("Target-id could not be created")
       if process.stderr:
-        self.log.error(process.stderr)
+        self.session.log.error(process.stderr)
       return False
 
-    self.log.debug(process.stdout)
-    self.log.info("Target-id created successfully")
+    self.session.log.debug(process.stdout)
+    self.session.log.info("Target-id created successfully")
     return True
 
-  def createDestination(self, tunnel="insecure", address="50066"):
+  def createDestination(
+    self,
+    address="50066",
+    description="Dialout1",
+    adminState="enable",
+    tunnel="insecure",
+    targetID="target_id_project_alpha",
+    secureService="false"
+  ):
     """
     Use the target-id to create a destination
     Parse status information and log output
     Returns: True if successful, False if unsuccessful
     Args:
-      tunnel: either secure or insecure (string)
       address: port number (string)
+      description: anything (string)
+      adminState: enable or disable (string)
+      tunnel: either secure or insecure (string)
+      targetID: ?
+      secureService: true or false (string)
     """
 
     tunnel_secure = "true" if tunnel == "secure" else "false"
@@ -81,9 +107,9 @@ class RESTAPI:
     createDestCMD = f"/opt/tools/swtools/6500/nbitools/testrest put api/v1/datastore/grpc-tunnel/destination/" \
                     f"{socket.gethostbyname(socket.gethostname())},{address}/ " \
                     f"'{{\"address\":{socket.gethostbyname(socket.gethostname())}," \
-                    f"\"port\":{address},\"description\":\"Dialout1\",\"admin-state\":\"enable\"," \
-                    f"\"secure-tunnel\":{tunnel_secure},\"handler\":[{{\"target-id\":\"target_id_project_alpha\"," \
-                    f"\"target-type\":\"GNMI_GNOI\",\"secure-service\":\"true\"}}]}}'"
+                    f"\"port\":{address},\"description\":{description},\"admin-state\":{adminState}," \
+                    f"\"secure-tunnel\":{tunnel_secure},\"handler\":[{{\"target-id\":{targetID}," \
+                    f"\"target-type\":\"GNMI_GNOI\",\"secure-service\":{secureService}]}}'"
 
     process = subprocess.run(
       createDestCMD,
@@ -93,12 +119,37 @@ class RESTAPI:
       universal_newlines=True,
     )
 
-    if process.returncode != 0:
-      self.log.error("Destination could not be created")
+    if not process.stdout.contains("NOERROR"):
+      self.session.log.error("Destination could not be created")
       if process.stderr:
-        self.log.error(process.stderr)
+        self.session.log.error(process.stderr)
       return False
 
-    self.log.debug(process.stdout)
-    self.log.info("Destination created successfully")
+    self.session.log.debug(process.stdout)
+    self.session.log.info("Destination created successfully")
     return True
+  
+  def getgrpcTunnels(self):
+
+    checkTunnelsCMD = "/opt/tools/swtools/6500/nbitools/testrest get api/v1/datastore/grpc-tunnel/ | jq ."
+
+    process = subprocess.run(
+      checkTunnelsCMD,
+      stdout=subprocess.PIPE,
+      stderr=subprocess.PIPE,
+      shell=True,
+      universal_newlines=True,
+    )
+
+    if process.returncode != 0:
+      self.session.log.error("Could not get tunnel data")
+      if process.stderr:
+        self.session.log.error(process.stderr)
+      return False
+
+    self.session.log.debug(process.stdout)
+    self.session.log.info("Tunnel data was retrieved successfully")
+    return True
+
+  def getTargetID(self):
+    return self.targetID
