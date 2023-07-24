@@ -3,6 +3,7 @@ import socket
 
 SUCCESS = "NOERROR"
 
+
 class RESTAPI:
   """
   REST API handle
@@ -11,13 +12,18 @@ class RESTAPI:
 
   # Login to the node
 
+  def __init__(self, session):
+    self.session = session
+    self.targetID = "target_id_project_alpha"
+
+
   def login(self):
     """
     Login to the node from collector
     Parse status information and log output
     Returns: True if successful, False if unsuccessful
     """
-    loginCMD = f"/opt/tools/swtools/6500/nbitools/testrest login {self.device.sp_ip_address}"
+    loginCMD = f"/opt/tools/swtools/6500/nbitools/testrest login {self.session.device.sp_ip_address}"
 
     process = subprocess.run(
       loginCMD,
@@ -27,15 +33,15 @@ class RESTAPI:
       universal_newlines=True,
     )
 
-    self.log.debug(process.stdout)
+    self.session.log.info(process.stdout)
 
     if SUCCESS not in process.stdout:
-      self.log.error("Login unsuccessful")
+      self.session.log.error("Login unsuccessful")
       if process.stderr:
-        self.log.error(process.stderr)
+        self.session.log.error(process.stderr)
       return False
 
-    self.log.info("Login successful")
+    self.session.log.info("Login successful")
     return True
 
   # Config on the node:
@@ -57,16 +63,16 @@ class RESTAPI:
       shell=True,
       universal_newlines=True,
     )
-    
-    self.log.debug(process.stdout)
+
+    self.session.log.debug(process.stdout)
 
     if SUCCESS not in process.stdout:
-      self.log.error("Target-id could not be created")
+      self.session.log.error("Target-id could not be created")
       if process.stderr:
-        self.log.error(process.stderr)
+        self.session.log.error(process.stderr)
       return False
 
-    self.log.info("Target-id created successfully")
+    self.session.log.info("Target-id created successfully")
     return True
 
   def createDestination(self, tunnel="insecure", address="50066"):
@@ -96,13 +102,45 @@ class RESTAPI:
       universal_newlines=True,
     )
 
-    self.log.debug(process.stdout)
+    self.session.log.debug(process.stdout)
 
     if SUCCESS not in process.stdout:
-      self.log.error("Destination could not be created")
+      self.session.log.error("Destination could not be created")
       if process.stderr:
-        self.log.error(process.stderr)
+        self.session.log.error(process.stderr)
       return False
 
-    self.log.info("Destination created successfully")
+    self.session.log.info("Destination created successfully")
     return True
+
+
+  def getgrpcTunnels(self):
+
+    checkTunnelsCMD = "/opt/tools/swtools/6500/nbitools/testrest get api/v1/datastore/grpc-tunnel/ | jq ."
+
+    process = subprocess.run(
+      checkTunnelsCMD,
+      stdout=subprocess.PIPE,
+      stderr=subprocess.PIPE,
+      shell=True,
+      universal_newlines=True,
+    )
+
+    if process.returncode != 0:
+      self.session.log.error("Could not get tunnel data")
+      if process.stderr:
+        self.session.log.error(process.stderr)
+      return None
+
+    self.session.log.info(process.stdout)
+    self.session.log.info("Tunnel data was retrieved successfully")
+    return process.stdout
+
+
+  def checkgrpcTunnels(self):
+    if self.getgrpcTunnels() == None:
+      return False
+    return True
+
+
+
