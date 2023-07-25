@@ -34,28 +34,25 @@ class TEST_GNMIC(test.TestCase):
     def testExecute(self):
         # Login and connect to REST API
         for dev, session in self.gnmicDev.items():
-            rest = RESTAPI(dev, dev.log)
+            rest = RESTAPI(dev)
             with self.gnmic_sanity_log.step(f"Login and connect {dev.name} with REST API") as step:
-                rest.login()
-                rest.create_target_id(
-                    target_id="target_id_project_alpha",
-                    custom_id="TARGET_ID_PROJECT_ALPHA"
-                )
-                rest.create_destination(
-                    self,
-                    address="50066",
-                    description="Dialout1",
-                    admin_state="enable",
-                    tunnel_secure="false",
-                    secure_service="true"
-                )
-                rest.get_grpc_tunnels()
-                """
-                step.Fail(errDict={f"{dev.name}": "Failed to login and connect to REST API"})
+                if not (
+                    rest.login()
+                    and rest.create_target_id(
+                        target_id="target_id_project_alpha",
+                        custom_id="TARGET_ID_PROJECT_ALPHA"
+                    )
+                    and rest.create_destination(
+                        address="50066",
+                        description="Dialout1",
+                        admin_state="enable",
+                        tunnel_secure="false",
+                        secure_service="true"
+                    )
+                ):
+                    step.Fail(errDict={f"{dev.name}": "Failed to login and connect to REST API"})
                 else:
-                """
-                step.Pass()
-
+                    step.Pass()
 
         # Create yaml file for all subscriptions
         self.gnmic_sanity_log.info("Create yaml file")
