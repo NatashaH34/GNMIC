@@ -12,9 +12,8 @@ class RESTAPI:
 
     # Login to the node
 
-    def __init__(self, device, log):
+    def __init__(self, device):
         self.device = device
-        self.log = log
         self.target_id = ""
         self.rest_tool = "/opt/tools/swtools/6500/nbitools/testrest"
 
@@ -32,15 +31,15 @@ class RESTAPI:
             universal_newlines=True,
         )
 
-        self.log.info(process.stdout)
+        self.device.log.debug(process.stdout)
 
         if SUCCESS not in process.stdout:
-            self.log.error(error_msg)
+            self.device.log.error(error_msg)
             if process.stderr:
-                self.log.error(process.stderr)
+                self.device.log.error(process.stderr)
             return False
 
-        self.log.info(success_msg)
+        self.device.log.info(success_msg)
         return True
 
     def login(self):
@@ -66,7 +65,11 @@ class RESTAPI:
         Create a target-id of custom type
         Parse status information and log output
         Returns: True if successful, False if unsuccessful
+        Args:
+            target_id: defaults to "target_id_project_alpha" (string)
+            custom_id: defaults to "TARGET_ID_PROJECT_ALPHA" (string)
         """
+
         self.target_id = target_id
 
         return self.parse_output(
@@ -88,31 +91,16 @@ class RESTAPI:
         Parse status information and log output
         Returns: True if successful, False if unsuccessful
         Args:
-            tunnel: either secure or insecure (string)
             address: port number (string)
+            description: anything (string)
+            admin_state: either enable or disable (string)
+            tunnel_secure: true or false (string)
+            secure_service: true or false (string)
         """
 
         return self.parse_output(
-            f"{self.rest_tool} put api/v1/datastore/grpc-tunnel/destination/" \
-            f"{socket.gethostbyname(socket.gethostname())},{address}/ " \
-            f"'{{\"address\":{socket.gethostbyname(socket.gethostname())}," \
-            f"\"port\":{address},\"description\":{description},\"admin-state\":{admin_state}," \
-            f"\"secure-tunnel\":{tunnel_secure},\"handler\":[{{\"target-id\":{self.target_id}," \
-            f"\"target-type\":\"GNMI_GNOI\",\"secure-service\":{secure_service}}}]}}'",
+            f"{self.rest_tool} put api/v1/datastore/grpc-tunnel/destination/{socket.gethostbyname(socket.gethostname())},{address}/ '{{\"address\":{socket.gethostbyname(socket.gethostname())},port\":{address},\"description\":{description},\"admin-state\":{admin_state},\"secure-tunnel\":{tunnel_secure},\"handler\":[{{\"target-id\":{self.target_id},\"target-type\":\"GNMI_GNOI\",\"secure-service\":{secure_service}}}]}}'",
             "Destination was created successfully",
             "Destination could not be created"
         )
 
-    def get_grpc_tunnels(self):
-        get_tunnels_cmd = f"{self.rest_tool} get api/v1/datastore/grpc-tunnel/ | jq ."
-        if self.parse_output(
-            get_tunnels_cmd,
-            "Retrieved tunnel data successfully",
-            "Could not retreive tunnel data"
-        ):
-          process = subprocess.run(
-              get_tunnels_cmd,
-              stdout=subprocess.PIPE,
-          )
-          return process.stdout
-        return None
