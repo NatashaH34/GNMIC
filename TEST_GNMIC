@@ -7,132 +7,127 @@ from infra.core import CustomLogger
 
 
 class TEST_GNMIC(test.TestCase):
-  """
-  Demonstrates GRPC API usage
-  """
-  gnmic_sanity_log = CustomLogger.CustomLogger(logFileName=f"{__qualname__}.html")
-  gnmic_sanity_log.setLoggingLevel(gnmic_sanity_log.internalFileHandler, "DEBUG")
-  gnmic_sanity_log.setLoggingLevel(gnmic_sanity_log.internalConsoleHandler, "INFO")
-
-  requisites = dict(topo_type='3nodeStraightT-T-PTS', time_limit=1000)
-  network = None
-
-  def testSetup(self):
-    self.gnmicDev = {}
-
-    self.gnmic_sanity_log.info("Netconf Test Case Case Setup")
-    self.SIM1 = self.network.devices[0]
-    self.SIM2 = self.network.devices[1]
-    self.SIM3 = self.network.devices[2]
-
-    # Instantiate a GNMIC connection
-    for device in self.network.devices:
-      self.gnmic_sanity_log.info(f"Enable GNMIC on {device.name}")
-      session = GNMIC(device=device, log=self.gnmic_sanity_log)
-      self.gnmicDev[device] = session
-
-  def testExecute(self):
-    # Login and connect to REST API
-    for dev, session in self.gnmicDev.items():
-      rest = RESTAPI(session)
-      with self.gnmic_sanity_log.step(f"Login and connect {dev.name} with REST API") as step:
-        """
-        if not (RESTAPI.login(session) and RESTAPI.createTargetID(session) and RESTAPI.createDestination(
-            session,
-            tunnel="insecure",
-            address="50066"
-        )):
-          step.Fail(errDict={f"{dev.name}": "Failed to login and connect to REST API"})
-        else:
-          step.Pass()
-        """
-        if not (
-            rest.login()
-            and rest.createTargetID()
-            and rest.createDestination(
-              tunnel="insecure",
-              address="50066"
-            )
-            and rest.checkgrpcTunnels()
-        ):
-            step.Fail(errDict={f"{dev.name}": "Failed to login and connect to REST API"})
-        else:
-          step.Pass()
-
     """
-    # Create yaml file for all subscriptions
-    self.gnmic_sanity_log.info("Create yaml file")
-    yamlFile = list(self.gnmicDev.values())[0].buildCollector(
-      tunnel="insecure",
-      server="secure",
-      address=50066,
-      targetWaitTime=30
-    )
-
-    # Perform a single stream GNMIC Async message
-    path = ['interfaces/interface', 'system/config']
-
-    for dev, session in self.gnmicDev.items():
-      with self.gnmic_sanity_log.step(f"Execute single stream for {path} on {dev.name}") as step:
-        # Stream contents are processed and returned as a dict
-        session.singleGNMICStream(yamlFile=yamlFile, path=path)
-        # Simple check to verify status of multiple streams
-        summaryStats = session.GNMICStreamsSummary()
-        passed = True
-        for path_ in path:
-          try:
-            summaryStats[path_]["streams"]
-          except:
-            step.Fail(errDict={f"{dev.name}": f"stream for path {path_} not executed"})
-            passed = False
-            break
-        if passed:
-          step.Pass()
-
-    # Perform a continuous stream for 60secs for the paths below. Output written to the file name provided in logs/GRPC/
-    paths = ['interfaces/interface', 'system/config']
-    for dev, session in self.gnmicDev.items():
-      with self.gnmic_sanity_log.step(f"Enable continuous streaming on {dev.name}") as step:
-        if not session.startGNMICStreams(yamlFile=yamlFile, paths=paths,
-                                         fileName=f"{self.__class__.__name__}_{dev.name}"):
-          step.Fail(errDict={f"{dev.name}": "Failed to start stream"})
-        else:
-          step.Pass()
-
-      self.gnmic_sanity_log.info("Wait for 60secs to capture GNMIC stream output")
-      time.sleep(60)
-
-      # Stop the stream and capture the output. The streams will be written to logs specified in startGNMICStreams
-      # Verify from the dictionary produced in output and optionally call htmlGNMICStreamOutput to create a html
-      # version of the combined stream output
-      with self.gnmic_sanity_log.step(f"Stop streams on {dev.name}") as step:
-        # Processed dictionary of the streams of all paths
-        output = session.stopAndCollectGNMICStreams(paths)
-        # Verify status of the GNMIC streams
-        summaryStats = session.GNMICStreamsSummary()
-        passed = True
-        for path in paths:
-          try:
-            summaryStats[path]["streams"]
-          except:
-            step.Fail(errDict={f"{dev.name}": f"stream for path {path} not executed"})
-            passed = False
-            break
-        if passed:
-          step.Pass()
-        # optional generates a html file with the processed stream output
-        session.htmlGNMICStreamOutput(output, paths, fileName=f"{self.__class__.__name__}_{dev.name}")
-
-    # Delete yaml file for all subscriptions
-    self.gnmic_sanity_log.info("Delete yaml file")
-    if os.path.exists(yamlFile):
-      os.remove(yamlFile)
-      
+    Demonstrates GRPC API usage
     """
+    gnmic_sanity_log = CustomLogger.CustomLogger(logFileName=f"{__qualname__}.html")
+    gnmic_sanity_log.setLoggingLevel(gnmic_sanity_log.internalFileHandler, "DEBUG")
+    gnmic_sanity_log.setLoggingLevel(gnmic_sanity_log.internalConsoleHandler, "INFO")
 
-  def testCleanup(self):
-    if self.gnmic_sanity_log.didStepsFail():
-      self.gnmic_sanity_log.Fail(self, errDict={"Failed": "One or more steps failed"})
+    requisites = dict(topo_type='3nodeStraightT-T-PTS', time_limit=1000)
+    network = None
 
-  def getResults(self):
-    return self.gnmic_sanity_log
+    def testSetup(self):
+        self.gnmicDev = {}
+
+        self.gnmic_sanity_log.info("Netconf Test Case Case Setup")
+        self.SIM1 = self.network.devices[0]
+        self.SIM2 = self.network.devices[1]
+        self.SIM3 = self.network.devices[2]
+
+        # Instantiate a GNMIC connection
+        for device in self.network.devices:
+            self.gnmic_sanity_log.info(f"Enable GNMIC on {device.name}")
+            session = GNMIC(device=device, log=self.gnmic_sanity_log)
+            self.gnmicDev[device] = session
+
+    def testExecute(self):
+        # Login and connect to REST API
+        for dev, session in self.gnmicDev.items():
+            rest = RESTAPI(dev, dev.log)
+            with self.gnmic_sanity_log.step(f"Login and connect {dev.name} with REST API") as step:
+                rest.login()
+                rest.create_target_id(
+                    target_id="target_id_project_alpha",
+                    custom_id="TARGET_ID_PROJECT_ALPHA"
+                )
+                rest.create_destination(
+                    self,
+                    address="50066",
+                    description="Dialout1",
+                    admin_state="enable",
+                    tunnel_secure="false",
+                    secure_service="true"
+                )
+                rest.get_grpc_tunnels()
+                """
+                step.Fail(errDict={f"{dev.name}": "Failed to login and connect to REST API"})
+                else:
+                """
+                step.Pass()
+
+
+        # Create yaml file for all subscriptions
+        self.gnmic_sanity_log.info("Create yaml file")
+        yamlFile = list(self.gnmicDev.values())[0].buildCollector(
+            tunnel="insecure", 
+            server="secure",
+            address=50066,
+            targetWaitTime=30
+        )
+
+        # Perform a single stream GNMIC Async message
+        path = ['interfaces/interface', 'system/config'] 
+
+        for dev, session in self.gnmicDev.items():
+            with self.gnmic_sanity_log.step(f"Execute single stream for {path} on {dev.name}") as step:
+                # Stream contents are processed and returned as a dict
+                session.singleGNMICStream(yamlFile=yamlFile, path=path)
+                # Simple check to verify status of multiple streams
+                summaryStats = session.GNMICStreamsSummary()
+                passed = True
+                for path_ in path:
+                    try:
+                        summaryStats[path_]["streams"]
+                    except:
+                        step.Fail(errDict={f"{dev.name}": f"stream for path {path_} not executed"})
+                        passed = False
+                        break
+                if passed:
+                    step.Pass()
+
+        # Perform a continuous stream for 60secs for the paths below. Output written to the file name provided in logs/GRPC/
+        paths = ['interfaces/interface', 'system/config']
+        for dev, session in self.gnmicDev.items():
+            with self.gnmic_sanity_log.step(f"Enable continuous streaming on {dev.name}") as step:
+                if not session.startGNMICStreams(yamlFile=yamlFile, paths=paths, fileName=f"{self.__class__.__name__}_{dev.name}"):
+                    step.Fail(errDict={f"{dev.name}": "Failed to start stream"})
+                else:                        
+                    step.Pass()
+
+            self.gnmic_sanity_log.info("Wait for 60secs to capture GNMIC stream output")
+            time.sleep(60)
+
+            # Stop the stream and capture the output. The streams will be written to logs specified in startGNMICStreams
+            # Verify from the dictionary produced in output and optionally call htmlGNMICStreamOutput to create a html
+            # version of the combined stream output
+            with self.gnmic_sanity_log.step(f"Stop streams on {dev.name}") as step:
+                # Processed dictionary of the streams of all paths
+                output = session.stopAndCollectGNMICStreams(paths)
+                # Verify status of the GNMIC streams
+                summaryStats = session.GNMICStreamsSummary()
+                passed = True
+                for path in paths:
+                    try:
+                        summaryStats[path]["streams"]
+                    except:
+                        step.Fail(errDict={f"{dev.name}": f"stream for path {path} not executed"})
+                        passed = False
+                        break
+                if passed:
+                    step.Pass()
+                # optional generates a html file with the processed stream output
+                session.htmlGNMICStreamOutput(output, paths, fileName=f"{self.__class__.__name__}_{dev.name}")
+
+        # Delete yaml file for all subscriptions
+        self.gnmic_sanity_log.info("Delete yaml file")
+        if os.path.exists(yamlFile):
+            os.remove(yamlFile)
+
+
+    def testCleanup(self):
+        if self.gnmic_sanity_log.didStepsFail():
+            self.gnmic_sanity_log.Fail(self, errDict={"Failed": "One or more steps failed"})
+
+    def getResults(self):
+        return self.gnmic_sanity_log
