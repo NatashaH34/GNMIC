@@ -1,8 +1,6 @@
 import subprocess
 import socket
 
-SUCCESS = "NOERROR"
-
 
 class RESTAPI:
     """
@@ -10,19 +8,29 @@ class RESTAPI:
     Supports logging into the node and connecting to the node
     """
 
-    # Login to the node
-
-    def __init__(self, device):
-        self.device = device
-        self.target_id = ""
+    def __init__(self, session): # takes a GNMIC object
+        self.device = session.device
+        self.username = session.username
+        self.password = session.password
+        self.target_id = "" # this is initialized in create_target_id()
         self.rest_tool = "/opt/tools/swtools/6500/nbitools/testrest"
 
     def parse_output(
-          self,
-          command,
-          success_msg,
-          error_msg
+        self,
+        command,
+        check_for,
+        success_msg,
+        error_msg
     ):
+        """
+        Executes a command, parses status information, logs output
+        Returns: Command output if successful, None if unsuccessful
+        Args:
+            - command: command to execute (string)
+            - check_for: string found in successful output (used to check success of output)
+            - success_msg: will be logged in case of success (string)
+            - error_msg: will be logged in case of error (string)
+        """
         process = subprocess.run(
             command,
             stdout=subprocess.PIPE,
@@ -33,26 +41,31 @@ class RESTAPI:
 
         self.device.log.debug(process.stdout)
 
-        if SUCCESS not in process.stdout:
-            self.device.log.error(error_msg)
+        if check_for not in process.stdout:
             if process.stderr:
                 self.device.log.error(process.stderr)
-            return False
+            self.device.log.error(error_msg)
+            return None
 
         self.device.log.info(success_msg)
-        return True
+        return process.stdout
+
+    # Login to the node
 
     def login(self):
         """
         Login to the node from collector
-        Parse status information and log output
+        Parses status information and logs output
         Returns: True if successful, False if unsuccessful
         """
-        return self.parse_output(
-            f"/opt/tools/swtools/6500/nbitools/testrest login {self.device.sp_ip_address}",
-            "Login successful",
-            "Login unsuccessful"
-        )
+        if self.parse_output(
+            command=f"{self.rest_tool} login {self.device.sp_ip_address}",
+            check_for="NOERROR",
+            success_msg="Login successful",
+            error_msg="Login unsuccessful"
+        ) is not None:
+            return True
+        return False
 
     # Config on the node:
 
@@ -62,8 +75,8 @@ class RESTAPI:
         custom_id="TARGET_ID_PROJECT_ALPHA"
     ):
         """
-        Create a target-id of custom type
-        Parse status information and log output
+        Creates a target-id of custom type
+        Parses status information and logs output
         Returns: True if successful, False if unsuccessful
         Args:
             target_id: defaults to "target_id_project_alpha" (string)
@@ -72,11 +85,14 @@ class RESTAPI:
 
         self.target_id = target_id
 
-        return self.parse_output(
-            f"{self.rest_tool} put api/v1/datastore/grpc-tunnel/target-id/{self.target_id} '{{\"components\":[\"custom\"],\"custom\":{custom_id}}}\'",
-            "Target-id created successfully",
-            "Target-id could not be created"
-        )
+        if self.parse_output(
+            command=f"{self.rest_tool} put api/v1/datastore/grpc-tunnel/target-id/{self.target_id} '{{\"components\":[\"custom\"],\"custom\":\"{custom_id}\"}}'",
+            check_for="NOERROR",
+            success_msg="Target-id was created successfully",
+            error_msg="Target-id could not be created"
+        ) is not None:
+            return True
+        return False
 
     def create_destination(
         self,
@@ -87,8 +103,8 @@ class RESTAPI:
         secure_service="true"
     ):
         """
-        Use the target-id to create a destination
-        Parse status information and log output
+        Uses the target-id to create a destination
+        Parses status information and logs output
         Returns: True if successful, False if unsuccessful
         Args:
             address: port number (string)
@@ -98,9 +114,26 @@ class RESTAPI:
             secure_service: true or false (string)
         """
 
-        return self.parse_output(
-            f"{self.rest_tool} put api/v1/datastore/grpc-tunnel/destination/{socket.gethostbyname(socket.gethostname())},{address}/ '{{\"address\":{socket.gethostbyname(socket.gethostname())},port\":{address},\"description\":{description},\"admin-state\":{admin_state},\"secure-tunnel\":{tunnel_secure},\"handler\":[{{\"target-id\":{self.target_id},\"target-type\":\"GNMI_GNOI\",\"secure-service\":{secure_service}}}]}}'",
-            "Destination was created successfully",
-            "Destination could not be created"
-        )
+        if self.parse_output(
+            command=f"{self.rest_tool} put api/v1/datastore/grpc-tunnel/destination/{socket.gethostbyname(socket.gethostname())},{address}/ '{{\"address\":\"{socket.gethostbyname(socket.gethostname())}\",\"port\":\"{address}\",\"description\":\"{description}\",\"admin-state\":\"{admin_state}\",\"secure-tunnel\":\"{tunnel_secure}\",\"handler\":[{{\"target-id\":\"{self.target_id}\",\"target-type\":\"GNMI_GNOI\",\"secure-service\":\"{secure_service}\"}}]}}'",
+            check_for="NOERROR",
+            success_msg="Destination was created successfully",
+            error_msg="Destination could not be created"
+        ) is not None:
+            return True
+        return False
 
+    # Get grpcTunnel data:
+    def get_grpc_tunnels(self):
+        """
+        Gets the grpcTunnel data
+        Returns:
+            - grpcTunnel data string if successful
+            - None if unsuccessful
+        """
+        return self.parse_output(
+            command=f"{self.rest_tool} get api/v1/datastore/grpc-tunnel/ | jq .",
+            check_for="ciena-pro-grpc-tunnel",
+            success_msg="GRPC tunnel data was retrieved successfully",
+            error_msg="GRPC tunnel data could not be retrieved"
+        )
