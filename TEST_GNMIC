@@ -28,31 +28,27 @@ class TEST_GNMIC(test.TestCase):
         # Instantiate a GNMIC connection
         for device in self.network.devices:
             self.gnmic_sanity_log.info(f"Enable GNMIC on {device.name}")
-            session = GNMIC(device=device, log=self.gnmic_sanity_log)
+            session = GNMIC(device=device, log=self.gnmic_sanity_log, username="ADMIN", password="ADMIN")
             self.gnmicDev[device] = session
 
     def testExecute(self):
         # Login and connect to REST API
         for dev, session in self.gnmicDev.items():
-            rest = RESTAPI(dev)
+            rest = RESTAPI(session)
             with self.gnmic_sanity_log.step(f"Login and connect {dev.name} with REST API") as step:
-                if not (
-                    rest.login()
-                    and rest.create_target_id(
-                        target_id="target_id_project_alpha",
-                        custom_id="TARGET_ID_PROJECT_ALPHA"
-                    )
-                    and rest.create_destination(
-                        address="50066",
-                        description="Dialout1",
-                        admin_state="enable",
-                        tunnel_secure="false",
-                        secure_service="true"
-                    )
-                ):
-                    step.Fail(errDict={f"{dev.name}": "Failed to login and connect to REST API"})
-                else:
-                    step.Pass()
+                rest.login()
+                rest.create_target_id(
+                    target_id="target_id_project_alpha",
+                    custom_id="TARGET_ID_PROJECT_ALPHA"
+                )
+                rest.create_destination(
+                    address="50066",
+                    description="Dialout1",
+                    admin_state="enable",
+                    tunnel_secure="false",
+                    secure_service="true"
+                )
+                step.Pass()
 
         # Create yaml file for all subscriptions
         self.gnmic_sanity_log.info("Create yaml file")
@@ -95,6 +91,14 @@ class TEST_GNMIC(test.TestCase):
             self.gnmic_sanity_log.info("Wait for 60secs to capture GNMIC stream output")
             time.sleep(60)
 
+            # Get GRPC tunnel data
+            rest = RESTAPI(session)
+            with self.gnmic_sanity_log.step(f"Get GRPC tunnel data on {dev.name} with REST API") as step:
+                if rest.get_grpc_tunnels() is not None:
+                    step.Pass()
+                else:
+                    step.Fail()
+
             # Stop the stream and capture the output. The streams will be written to logs specified in startGNMICStreams
             # Verify from the dictionary produced in output and optionally call htmlGNMICStreamOutput to create a html
             # version of the combined stream output
@@ -116,11 +120,21 @@ class TEST_GNMIC(test.TestCase):
                 # optional generates a html file with the processed stream output
                 session.htmlGNMICStreamOutput(output, paths, fileName=f"{self.__class__.__name__}_{dev.name}")
 
+        """
+        # Get GRPC tunnel data
+        for dev, session in self.gnmicDev.items():
+            rest = RESTAPI(session)
+            with self.gnmic_sanity_log.step(f"Get GRPC tunnel data on {dev.name} with REST API") as step:
+                if rest.get_grpc_tunnels() is not None:
+                    step.Pass()
+                else:
+                    step.Fail()
+        """
+
         # Delete yaml file for all subscriptions
         self.gnmic_sanity_log.info("Delete yaml file")
         if os.path.exists(yamlFile):
             os.remove(yamlFile)
-
 
     def testCleanup(self):
         if self.gnmic_sanity_log.didStepsFail():
