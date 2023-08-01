@@ -5,7 +5,6 @@ from infra.GNMIC.GNMIC import GNMIC
 from infra.GNMIC.RESTAPI import RESTAPI
 from infra.core import CustomLogger
 
-
 class TEST_GNMIC(test.TestCase):
     """
     Demonstrates GRPC API usage
@@ -28,7 +27,7 @@ class TEST_GNMIC(test.TestCase):
         # Instantiate a GNMIC connection
         for device in self.network.devices:
             self.gnmic_sanity_log.info(f"Enable GNMIC on {device.name}")
-            session = GNMIC(device=device, log=self.gnmic_sanity_log, username="ADMIN", password="ADMIN")
+            session = GNMIC(device=device, log=self.gnmic_sanity_log)
             self.gnmicDev[device] = session
 
     def testExecute(self):
@@ -42,13 +41,16 @@ class TEST_GNMIC(test.TestCase):
                     custom_id="TARGET_ID_PROJECT_ALPHA"
                 )
                 rest.create_destination(
-                    address="50066",
-                    description="Dialout1",
-                    admin_state="enable",
-                    tunnel_secure="false",
-                    secure_service="true"
+                        address="50066",
+                        description="Dialout1",
+                        admin_state="enable",
+                        tunnel_secure="false",
+                        secure_service="true"
                 )
                 step.Pass()
+                self.gnmic_sanity_log.info(f"Target-id: {rest.target_id}")
+                # else:
+                #    step.Fail(errDict={f"{dev.name}": "Failed to login and connect to REST API"})
 
         # Create yaml file for all subscriptions
         self.gnmic_sanity_log.info("Create yaml file")
@@ -58,7 +60,7 @@ class TEST_GNMIC(test.TestCase):
             address=50066,
             targetWaitTime=30
         )
-
+        
         # Perform a single stream GNMIC Async message
         path = ['interfaces/interface', 'system/config'] 
 
@@ -117,24 +119,13 @@ class TEST_GNMIC(test.TestCase):
                         break
                 if passed:
                     step.Pass()
-                # optional generates a html file with the processed stream output
+                # optional generates a html file with the prlocessed stream output
                 session.htmlGNMICStreamOutput(output, paths, fileName=f"{self.__class__.__name__}_{dev.name}")
-
-        """
-        # Get GRPC tunnel data
-        for dev, session in self.gnmicDev.items():
-            rest = RESTAPI(session)
-            with self.gnmic_sanity_log.step(f"Get GRPC tunnel data on {dev.name} with REST API") as step:
-                if rest.get_grpc_tunnels() is not None:
-                    step.Pass()
-                else:
-                    step.Fail()
-        """
 
         # Delete yaml file for all subscriptions
         self.gnmic_sanity_log.info("Delete yaml file")
-        if os.path.exists(yamlFile):
-            os.remove(yamlFile)
+        session = list(self.gnmicDev.values())[0]
+        session.__del__()
 
     def testCleanup(self):
         if self.gnmic_sanity_log.didStepsFail():
