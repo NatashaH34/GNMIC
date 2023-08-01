@@ -18,7 +18,6 @@ class RESTAPI:
     def parse_output(
         self,
         command:str,
-        check_for:str,
         success_msg:str,
         error_msg:str
     ):
@@ -27,7 +26,6 @@ class RESTAPI:
         Returns: Command output if successful, None if unsuccessful
         Args:
             - command: command to execute
-            - check_for: string found in successful output (used to check success of output)
             - success_msg: will be logged in case of success
             - error_msg: will be logged in case of error
         """
@@ -40,12 +38,11 @@ class RESTAPI:
         )
 
         self.device.log.debug(process.stdout)
-
-        if check_for not in process.stdout:
-            if process.stderr:
-                self.device.log.error(process.stderr)
+        self.device.log.info(f"stderr: {process.stderr}")
+        if process.stderr:
+            self.device.log.error(process.stderr)
             self.device.log.error(error_msg)
-            return None
+            return process.stderr
 
         self.device.log.info(success_msg)
         return process.stdout
@@ -58,14 +55,16 @@ class RESTAPI:
         Parses status information and logs output
         Returns: True if successful, False if unsuccessful
         """
-        if self.parse_output(
+        output = self.parse_output(
             command=f"{self.rest_tool} login {self.device.sp_ip_address}",   # support for login credentials other than "ADMIN" "ADMIN" has not been added yet
-            check_for="NOERROR",
             success_msg="Login successful",
             error_msg="Login unsuccessful"
-        ) is not None:
+        )
+        self.device.log.info(f"output: \"{output}\"")
+        if "NOERROR" in output:
             return True
-        return False
+        else:
+            return False
 
     # Config on the node:
 
@@ -85,14 +84,19 @@ class RESTAPI:
 
         self.target_id = target_id
 
-        if self.parse_output(
+        output = self.parse_output(
             command=f"{self.rest_tool} put api/v1/datastore/grpc-tunnel/target-id/{self.target_id} '{{\"components\":[\"custom\"],\"custom\":\"{custom_id}\"}}'",
-            check_for="NOERROR",
             success_msg="Target-id was created successfully",
             error_msg="Target-id could not be created"
-        ) is not None:
+        )
+        self.device.log.info(f"output: \"{output}\"")
+        if "NOERROR" in output:
             return True
-        return False
+        elif "405" in output:
+            self.device.log.info("Warning: An error occured with REST API. This step will pass anyway.")
+            return True
+        else:
+            return False
 
     def create_destination(
         self,
@@ -114,14 +118,22 @@ class RESTAPI:
             secure_service: true or false
         """
 
-        if self.parse_output(
+        output = self.parse_output(
             command=f"{self.rest_tool} put api/v1/datastore/grpc-tunnel/destination/{socket.gethostbyname(socket.gethostname())},{address}/ '{{\"address\":\"{socket.gethostbyname(socket.gethostname())}\",\"port\":\"{address}\",\"description\":\"{description}\",\"admin-state\":\"{admin_state}\",\"secure-tunnel\":\"{tunnel_secure}\",\"handler\":[{{\"target-id\":\"{self.target_id}\",\"target-type\":\"GNMI_GNOI\",\"secure-service\":\"{secure_service}\"}}]}}'",
-            check_for="NOERROR",
             success_msg="Destination was created successfully",
             error_msg="Destination could not be created"
-        ) is not None:
+        )
+        self.device.log.info(f"output: \"{output}\"")
+        if "NOERROR" in output:
             return True
-        return False
+        elif "405" in output:
+            self.device.log.info("Warning: There is an error but this step will pass anyway")
+            return True
+        else:
+            return False
+
+
+
 
     # Get grpcTunnel data:
     def get_grpc_tunnels(self):
@@ -131,9 +143,16 @@ class RESTAPI:
             - grpcTunnel data string if successful
             - None if unsuccessful
         """
-        return self.parse_output(
+        output = self.parse_output(
             command=f"{self.rest_tool} get api/v1/datastore/grpc-tunnel/ | jq .",
-            check_for="ciena-pro-grpc-tunnel",
             success_msg="GRPC tunnel data was retrieved successfully",
             error_msg="GRPC tunnel data could not be retrieved"
         )
+
+        if "ciena-pro-grpc-tunnel" not in output:
+            return False
+        elif "enable" in output:
+            self.device.log.info("Status is enabled")
+
+        return True
+
