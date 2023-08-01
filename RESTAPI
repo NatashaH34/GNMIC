@@ -1,6 +1,6 @@
 import subprocess
 import socket
-
+from infra.GNMIC.GNMIC import GNMIC
 
 class RESTAPI:
     """
@@ -8,28 +8,28 @@ class RESTAPI:
     Supports logging into the node and connecting to the node
     """
 
-    def __init__(self, session): # takes a GNMIC object
+    def __init__(self, session:GNMIC):
         self.device = session.device
         self.username = session.username
         self.password = session.password
-        self.target_id = "" # this is initialized in create_target_id()
+        self.target_id = ""  # this is initialized in create_target_id()
         self.rest_tool = "/opt/tools/swtools/6500/nbitools/testrest"
 
     def parse_output(
         self,
-        command,
-        check_for,
-        success_msg,
-        error_msg
+        command:str,
+        check_for:str,
+        success_msg:str,
+        error_msg:str
     ):
         """
         Executes a command, parses status information, logs output
         Returns: Command output if successful, None if unsuccessful
         Args:
-            - command: command to execute (string)
+            - command: command to execute
             - check_for: string found in successful output (used to check success of output)
-            - success_msg: will be logged in case of success (string)
-            - error_msg: will be logged in case of error (string)
+            - success_msg: will be logged in case of success
+            - error_msg: will be logged in case of error
         """
         process = subprocess.run(
             command,
@@ -59,7 +59,7 @@ class RESTAPI:
         Returns: True if successful, False if unsuccessful
         """
         if self.parse_output(
-            command=f"{self.rest_tool} login {self.device.sp_ip_address}",
+            command=f"{self.rest_tool} login {self.device.sp_ip_address}",   # support for login credentials other than "ADMIN" "ADMIN" has not been added yet
             check_for="NOERROR",
             success_msg="Login successful",
             error_msg="Login unsuccessful"
@@ -71,16 +71,16 @@ class RESTAPI:
 
     def create_target_id(
         self,
-        target_id="target_id_project_alpha",
-        custom_id="TARGET_ID_PROJECT_ALPHA"
+        target_id:str="target_id_project_alpha",
+        custom_id:str="TARGET_ID_PROJECT_ALPHA"
     ):
         """
         Creates a target-id of custom type
         Parses status information and logs output
         Returns: True if successful, False if unsuccessful
         Args:
-            target_id: defaults to "target_id_project_alpha" (string)
-            custom_id: defaults to "TARGET_ID_PROJECT_ALPHA" (string)
+            target_id: defaults to "target_id_project_alpha"
+            custom_id: defaults to "TARGET_ID_PROJECT_ALPHA"
         """
 
         self.target_id = target_id
@@ -96,22 +96,22 @@ class RESTAPI:
 
     def create_destination(
         self,
-        address="50066",
-        description="Dialout1",
-        admin_state="enable",
-        tunnel_secure="false",
-        secure_service="true"
+        address:str="50066",
+        description:str="Dialout1",
+        admin_state:str="enable",
+        tunnel_secure:str="false",
+        secure_service:str="true"
     ):
         """
         Uses the target-id to create a destination
         Parses status information and logs output
         Returns: True if successful, False if unsuccessful
         Args:
-            address: port number (string)
-            description: anything (string)
-            admin_state: either enable or disable (string)
-            tunnel_secure: true or false (string)
-            secure_service: true or false (string)
+            address: port number
+            description: can be anything
+            admin_state: enable or disable
+            tunnel_secure: true or false
+            secure_service: true or false
         """
 
         if self.parse_output(
